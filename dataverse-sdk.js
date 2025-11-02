@@ -1,7 +1,6 @@
 /**
- * Dataverse JS SDK v1.2 - Anti-Forgery Token Support
+ * Dataverse JS SDK v1.3 - Liquid Anti-Forgery Token Support
  * Author: Marcos Leite
- * Description: Adds support for Power Pages anti-forgery tokens on write operations.
  */
 (function(window) {
     "use strict";
@@ -12,9 +11,9 @@
         
         // --- INÍCIO DA ALTERAÇÃO ---
         _fetch: async function(url, options = {}) {
-            // Função auxiliar para ir buscar o token da página
+            // Função auxiliar para ir buscar o token da nossa div especial
             function getRequestVerificationToken() {
-                return document.querySelector("#__RequestVerificationToken")?.value;
+                return document.getElementById("request-verification-token")?.getAttribute("data-token");
             }
 
             options.headers = {
@@ -25,13 +24,13 @@
                 ...options.headers
             };
 
-            // Se for uma operação de escrita (POST, PATCH, DELETE), adiciona o token
             if (options.method === 'POST' || options.method === 'PATCH' || options.method === 'DELETE') {
                 const token = getRequestVerificationToken();
                 if (token) {
                     options.headers['__RequestVerificationToken'] = token;
                 } else {
-                    console.warn("Anti-forgery token not found. Write operations may fail.");
+                    console.error("Anti-forgery token could not be found in the #request-verification-token div. Write operations will fail.");
+                    throw new Error("Anti-forgery token not found.");
                 }
             }
             // --- FIM DA ALTERAÇÃO ---
@@ -51,7 +50,7 @@
             if (response.status === 201) return response.headers.get("OData-EntityId");
             return response.json();
         },
-        // ... (o resto das funções: create, retrieve, etc. continuam EXATAMENTE IGUAIS)
+        // ... (o resto das funções do SDK continuam EXATAMENTE IGUAIS)
         create: async function(e,t){const n=this._getApiUrl()+e+"s",o={method:"POST",body:JSON.stringify(t)};return(await this._fetch(n,o)).match(/\(([^)]+)\)/)[1]},retrieve:async function(e,t,n={}){let o=[];n.select&&o.push(`$select=${n.select.join(",")}`),n.expand&&o.push(`$expand=${n.expand}`);const a=`${this._getApiUrl()}${e}s(${t})${o.length>0?"?"+o.join("&"):""}`;return this._fetch(a,{method:"GET"})},retrieveMultiple:async function(e,t={}){let n=[];t.select&&n.push(`$select=${t.select.join(",")}`),t.filter&&n.push(`$filter=${t.filter}`),t.orderby&&n.push(`$orderby=${t.orderby}`),t.top&&n.push(`$top=${t.top}`),t.expand&&n.push(`$expand=${t.expand}`);const o=`${this._getApiUrl()}${e}s${n.length>0?"?"+n.join("&"):""}`;return(await this._fetch(o,{method:"GET"})).value},update:async function(e,t,n){const o=`${this._getApiUrl()}${e}s(${t})`,a={method:"PATCH",body:JSON.stringify(n)};return this._fetch(o,a)},delete:async function(e,t){const n=`${this._getApiUrl()}${e}s(${t})`;return this._fetch(n,{method:"DELETE"})}
     };
 
